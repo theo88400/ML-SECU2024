@@ -49,3 +49,66 @@ def get_SWT(path="data/SecureWaterTreatment/", small=False):
     res.append(pd.read_excel(path + "29June2020 (2).xlsx"), skiprows=skiprows)
 
     return res
+
+def _clean_HITL(hitl_dict: dict, is_network: bool = True):
+    """
+    Cleans the HITL datasets in a dictionary.
+    :param hitl_dict: containing 3 lists of attack datasets and 1 normal dataset.
+    :param is_network: Whether the dataset is the network dataset.
+    """
+    prefix = "network_" if is_network else "physical_"
+
+    dataset_attack = hitl_dict[prefix + "dataset_attack"] # 4 attacks recorded from the network perspective
+    dataset_normal = hitl_dict[prefix + "dataset_normal"] # 1 normal recording from the network perspective (no attack)
+    for dataset in [*dataset_attack, dataset_normal]:
+        dataset.rename(columns=lambda x: x.strip().lower(), inplace=True) # remove whitespace from column names
+    
+    # Check unmatched dtypes
+    normal_dtypes = dataset_normal.dtypes
+    attack_dtypes = dataset_attack[0].dtypes
+    mask = attack_dtypes == normal_dtypes
+    
+    # Update to broader dtype to avoid errors
+    dataset_normal[normal_dtypes[~mask].index] = dataset_normal[normal_dtypes[~mask].index].astype("float64")
+
+    # Set which line if from which dataset
+    for ds in dataset_attack:
+        ds["attack"] = 1
+    dataset_normal["attack"] = 0
+
+    # Concatenate all datasets
+    dataset = pd.concat([*dataset_attack, dataset_normal], ignore_index=True)
+    
+    # Update a wrong column if physical dataset
+    if not is_network:
+        # There is a third column named lable_n which seems to be the same as label_n
+        ds_label_n = dataset["label_n"]
+        ds_lable_n = dataset["lable_n"]
+
+        # Print both column's respective non NaN indexes to see if they are complementary
+        physical_label_n_indexes = ds_label_n[~ds_label_n.isna()].index
+        physical_lable_n_indexes = ds_lable_n[~ds_lable_n.isna()].index
+        assert len(set(physical_label_n_indexes).intersection(set(physical_lable_n_indexes))) == 0 # Both columns are complementary
+
+        # Merge the two columns
+        dataset["label_n"] = ds_label_n.fillna(ds_lable_n)
+
+        assert dataset["label_n"].isna().sum() == 0
+
+        dataset = dataset.drop(columns=["lable_n"])
+    
+    # Convert time to timestamp
+    dataset["time"] = pd.to_datetime(dataset["time"], format="mixed")
+    dataset["time"] = dataset["time"].apply(lambda x: x.timestamp())
+
+    return dataset
+
+def clean_HITL(hitl_dict: dict):
+    """
+    Returns the cleaned hitl datasets.
+    :param hitld_dict: the HITL dict from get_HITL
+    :returns: tuple (network_dataset, physical_dataset)
+    """
+    network_dataset = _clean_HITL(hitl_dict, is_network=True)
+    physical_dataset = _clean_HITL(hitl_dict, is_network=False)
+    return network_dataset, physical_dataset
