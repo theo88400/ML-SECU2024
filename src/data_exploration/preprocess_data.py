@@ -79,7 +79,7 @@ def _clean_HITL(hitl_dict: dict, is_network: bool = True):
     # Concatenate all datasets
     dataset = pd.concat([*dataset_attack, dataset_normal], ignore_index=True)
     
-    # Update a wrong column if physical dataset
+    # Physical dataset only fixes
     if not is_network:
         # There is a third column named lable_n which seems to be the same as label_n
         ds_label_n = dataset["label_n"]
@@ -96,6 +96,13 @@ def _clean_HITL(hitl_dict: dict, is_network: bool = True):
         assert dataset["label_n"].isna().sum() == 0
 
         dataset = dataset.drop(columns=["lable_n"])
+
+        # Convert to int bool columns
+        bool_cols = dataset.columns[dataset.dtypes == bool]
+        dataset[bool_cols] = dataset[bool_cols].astype(int)
+
+        # Remove a typo in label column
+        dataset.loc[dataset["label"] == "nomal", "label"] = "normal"
     
     # Convert time to timestamp
     dataset["time"] = pd.to_datetime(dataset["time"], format="mixed")
