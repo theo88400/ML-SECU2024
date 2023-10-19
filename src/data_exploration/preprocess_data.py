@@ -26,10 +26,10 @@ def get_HITL(path="data/HardwareInTheLoop/", small=False):
     # Physical dataset
     physical_dataset = []
     for i in range(1, 4):
-        physical_dataset.append(pd.read_csv(path + "Physical dataset/phy_att_" + str(i) + ".csv", skiprows=skiprows, delimiter=";"))
+        physical_dataset.append(pd.read_csv(path + "Physical dataset/phy_att_" + str(i) + ".csv", delimiter=";"))
     
     res["physical_dataset_attack"] = physical_dataset
-    res["physical_dataset_normal"] = pd.read_csv(path + "Physical dataset/phy_norm.csv", skiprows=skiprows, delimiter=";")
+    res["physical_dataset_normal"] = pd.read_csv(path + "Physical dataset/phy_norm.csv", delimiter=";")
 
     return res
 
