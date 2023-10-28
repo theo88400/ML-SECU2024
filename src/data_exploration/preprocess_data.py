@@ -1,4 +1,18 @@
+"""
+Preprocesses the HITL dataset.
+"""
+
 import pandas as pd
+
+from mlsecu.data_exploration_utils import (
+    get_number_column_names,
+    get_object_column_names,
+)
+from mlsecu.data_preparation_utils import (
+    get_one_hot_encoded_dataframe,
+    remove_nan_through_mean_imputation,
+)
+
 
 def get_HITL(path="data/HardwareInTheLoop/", small=False):
     """
@@ -18,20 +32,34 @@ def get_HITL(path="data/HardwareInTheLoop/", small=False):
     # Network dataset
     network_dataset = []
     for i in range(1, 4):
-        network_dataset.append(pd.read_csv(path + "Network datatset/csv/attack_" + str(i) + ".csv", skiprows=skiprows))
-    
+        network_dataset.append(
+            pd.read_csv(
+                path + "Network datatset/csv/attack_" + str(i) + ".csv",
+                skiprows=skiprows,
+            )
+        )
+
     res["network_dataset_attack"] = network_dataset
-    res["network_dataset_normal"] = pd.read_csv(path + "Network datatset/csv/normal.csv", skiprows=skiprows)
+    res["network_dataset_normal"] = pd.read_csv(
+        path + "Network datatset/csv/normal.csv", skiprows=skiprows
+    )
 
     # Physical dataset
     physical_dataset = []
     for i in range(1, 4):
-        physical_dataset.append(pd.read_csv(path + "Physical dataset/phy_att_" + str(i) + ".csv", delimiter=";"))
-    
+        physical_dataset.append(
+            pd.read_csv(
+                path + "Physical dataset/phy_att_" + str(i) + ".csv", delimiter=";"
+            )
+        )
+
     res["physical_dataset_attack"] = physical_dataset
-    res["physical_dataset_normal"] = pd.read_csv(path + "Physical dataset/phy_norm.csv", delimiter=";")
+    res["physical_dataset_normal"] = pd.read_csv(
+        path + "Physical dataset/phy_norm.csv", delimiter=";"
+    )
 
     return res
+
 
 def get_SWT(path="data/SecureWaterTreatment/", small=False):
     """
@@ -50,6 +78,7 @@ def get_SWT(path="data/SecureWaterTreatment/", small=False):
 
     return res
 
+
 def _clean_HITL(hitl_dict: dict, is_network: bool = True):
     """
     Cleans the HITL datasets in a dictionary.
@@ -58,18 +87,26 @@ def _clean_HITL(hitl_dict: dict, is_network: bool = True):
     """
     prefix = "network_" if is_network else "physical_"
 
-    dataset_attack = hitl_dict[prefix + "dataset_attack"] # 4 attacks recorded from the network perspective
-    dataset_normal = hitl_dict[prefix + "dataset_normal"] # 1 normal recording from the network perspective (no attack)
+    dataset_attack = hitl_dict[
+        prefix + "dataset_attack"
+    ]  # 4 attacks recorded from the network perspective
+    dataset_normal = hitl_dict[
+        prefix + "dataset_normal"
+    ]  # 1 normal recording from the network perspective (no attack)
     for dataset in [*dataset_attack, dataset_normal]:
-        dataset.rename(columns=lambda x: x.strip().lower(), inplace=True) # remove whitespace from column names
-    
+        dataset.rename(
+            columns=lambda x: x.strip().lower(), inplace=True
+        )  # remove whitespace from column names
+
     # Check unmatched dtypes
     normal_dtypes = dataset_normal.dtypes
     attack_dtypes = dataset_attack[0].dtypes
     mask = attack_dtypes == normal_dtypes
-    
+
     # Update to broader dtype to avoid errors
-    dataset_normal[normal_dtypes[~mask].index] = dataset_normal[normal_dtypes[~mask].index].astype("float64")
+    dataset_normal[normal_dtypes[~mask].index] = dataset_normal[
+        normal_dtypes[~mask].index
+    ].astype("float64")
 
     # Set which line if from which dataset
     for ds in dataset_attack:
@@ -78,7 +115,7 @@ def _clean_HITL(hitl_dict: dict, is_network: bool = True):
 
     # Concatenate all datasets
     dataset = pd.concat([*dataset_attack, dataset_normal], ignore_index=True)
-    
+
     # Physical dataset only fixes
     if not is_network:
         # There is a third column named lable_n which seems to be the same as label_n
@@ -88,7 +125,14 @@ def _clean_HITL(hitl_dict: dict, is_network: bool = True):
         # Print both column's respective non NaN indexes to see if they are complementary
         physical_label_n_indexes = ds_label_n[~ds_label_n.isna()].index
         physical_lable_n_indexes = ds_lable_n[~ds_lable_n.isna()].index
-        assert len(set(physical_label_n_indexes).intersection(set(physical_lable_n_indexes))) == 0 # Both columns are complementary
+        assert (
+            len(
+                set(physical_label_n_indexes).intersection(
+                    set(physical_lable_n_indexes)
+                )
+            )
+            == 0
+        )  # Both columns are complementary
 
         # Merge the two columns
         dataset["label_n"] = ds_label_n.fillna(ds_lable_n)
@@ -103,12 +147,13 @@ def _clean_HITL(hitl_dict: dict, is_network: bool = True):
 
         # Remove a typo in label column
         dataset.loc[dataset["label"] == "nomal", "label"] = "normal"
-    
+
     # Convert time to timestamp
     dataset["time"] = pd.to_datetime(dataset["time"], format="mixed")
     dataset["time"] = dataset["time"].apply(lambda x: x.timestamp())
 
     return dataset
+
 
 def clean_HITL(hitl_dict: dict):
     """
@@ -119,3 +164,50 @@ def clean_HITL(hitl_dict: dict):
     network_dataset = _clean_HITL(hitl_dict, is_network=True)
     physical_dataset = _clean_HITL(hitl_dict, is_network=False)
     return network_dataset, physical_dataset
+
+
+def remove_network_contextual_columns(df):
+    to_remove = [
+        "time",
+        "mac_s",
+        "mac_d",
+        "ip_s",
+        "ip_d",
+        "modbus_response",
+    ]
+    df = df.drop(columns=to_remove, inplace=False)
+    return df
+
+
+def _update_labels(df_labels):
+    df_labels = df_labels.reset_index(drop=True)
+    df_labels["new_labels"] = df_labels["label"].astype("category").cat.codes
+    return df_labels
+
+
+def prepare_HTIL_network_dataset(df_network):
+    df_network_labels = df_network[["label_n", "label", "attack"]]
+    df_network = df_network.drop(columns=["label", "label_n", "attack"])
+
+    assert len(get_number_column_names(df_network)) + len(
+        get_object_column_names(df_network)
+    ) == len(df_network.columns)
+
+    df_number_network = remove_nan_through_mean_imputation(
+        df_network[get_number_column_names(df_network)]
+    )
+    df_object_network = get_one_hot_encoded_dataframe(
+        df_network[get_object_column_names(df_network)].fillna("")
+    )
+    df_object_network = df_object_network.astype(int)
+
+    df_network_prepared = pd.concat([df_number_network, df_object_network], axis=1)
+    df_network_prepared.reset_index(drop=True, inplace=True)
+
+    cats = get_object_column_names(df_network_prepared)
+    for col in cats:
+        df_network_prepared[col] = df_network_prepared[col].astype("category")
+
+    df_network_labels = _update_labels(df_network_labels)
+
+    return df_network_prepared, df_network_labels
