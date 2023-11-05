@@ -185,7 +185,7 @@ def _update_labels(df_labels):
     return df_labels
 
 
-def prepare_HTIL_network_dataset(df_network):
+def prepare_HTIL_network_dataset(df_network, one_hot_encode=True):
     df_network_labels = df_network[["label_n", "label", "attack"]]
     df_network = df_network.drop(columns=["label", "label_n", "attack"])
 
@@ -196,10 +196,13 @@ def prepare_HTIL_network_dataset(df_network):
     df_number_network = remove_nan_through_mean_imputation(
         df_network[get_number_column_names(df_network)]
     )
-    df_object_network = get_one_hot_encoded_dataframe(
-        df_network[get_object_column_names(df_network)].fillna("")
-    )
-    df_object_network = df_object_network.astype(int)
+    if one_hot_encode:
+        df_object_network = get_one_hot_encoded_dataframe(
+            df_network[get_object_column_names(df_network)].fillna("")
+        )
+        df_object_network = df_object_network.astype(int)
+    else:
+        df_object_network = df_network[get_object_column_names(df_network)].fillna("")
 
     df_network_prepared = pd.concat([df_number_network, df_object_network], axis=1)
     df_network_prepared.reset_index(drop=True, inplace=True)
