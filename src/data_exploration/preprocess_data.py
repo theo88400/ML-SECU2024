@@ -185,7 +185,7 @@ def _update_labels(df_labels):
     return df_labels
 
 
-def prepare_HTIL_network_dataset(df_network):
+def prepare_HTIL_network_dataset(df_network, one_hot_encode=True):
     df_network_labels = df_network[["label_n", "label", "attack"]]
     df_network = df_network.drop(columns=["label", "label_n", "attack"])
 
@@ -196,10 +196,13 @@ def prepare_HTIL_network_dataset(df_network):
     df_number_network = remove_nan_through_mean_imputation(
         df_network[get_number_column_names(df_network)]
     )
-    df_object_network = get_one_hot_encoded_dataframe(
-        df_network[get_object_column_names(df_network)].fillna("")
-    )
-    df_object_network = df_object_network.astype(int)
+    if one_hot_encode:
+        df_object_network = get_one_hot_encoded_dataframe(
+            df_network[get_object_column_names(df_network)].fillna("")
+        )
+        df_object_network = df_object_network.astype(int)
+    else:
+        df_object_network = df_network[get_object_column_names(df_network)].fillna("")
 
     df_network_prepared = pd.concat([df_number_network, df_object_network], axis=1)
     df_network_prepared.reset_index(drop=True, inplace=True)
@@ -211,3 +214,37 @@ def prepare_HTIL_network_dataset(df_network):
     df_network_labels = _update_labels(df_network_labels)
 
     return df_network_prepared, df_network_labels
+
+def prepare_HTIL_physical_dataset(df_physical):
+    df_physical_labels = df_physical[["label_n", "label", "attack"]]
+    df_physical = df_physical.drop(columns=["label", "label_n", "attack"])
+
+    assert len(get_number_column_names(df_physical)) + len(
+        get_object_column_names(df_physical)
+    ) == len(df_physical.columns)
+
+    df_number_physical = remove_nan_through_mean_imputation(
+        df_physical[get_number_column_names(df_physical)]
+    )
+    # df_object_physical = get_one_hot_encoded_dataframe(
+    #     df_physical[get_object_column_names(df_physical)].fillna("")
+    # )
+    # df_object_physical = df_object_physical.astype(int)
+
+    df_physical_prepared = df_number_physical # pd.concat([df_number_physical, df_object_physical], axis=1)
+    df_physical_prepared.reset_index(drop=True, inplace=True)
+
+    cats = get_object_column_names(df_physical_prepared)
+    for col in cats:
+        df_physical_prepared[col] = df_physical_prepared[col].astype("category")
+
+    df_physical_labels = _update_labels(df_physical_labels)
+
+    return df_physical_prepared, df_physical_labels
+
+def remove_physical_contextual_columns(df):
+    to_remove = [
+        "time"
+    ]
+    df = df.drop(columns=to_remove, inplace=False)
+    return df
