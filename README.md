@@ -2,7 +2,7 @@
 
 > Datasets can be found on the moodle page `Machine Learning pour la Cybersécurité`
 
-please rename both datasets folders like so ensure correct loading:
+Please rename both datasets folders like below to ensure correct loading:
 - `HardwareInTheLoop`
 - `SecureWaterTreatment`
 
