@@ -167,6 +167,9 @@ def clean_HITL(hitl_dict: dict):
 
 
 def remove_network_contextual_columns(df):
+    """
+    Removing contextual columns that may introduce bias in the model.
+    """
     to_remove = [
         "time",
         "mac_s",
@@ -186,6 +189,9 @@ def _update_labels(df_labels):
 
 
 def prepare_HTIL_network_dataset(df_network, one_hot_encode=True, drop_anomaly=True):
+    """
+    Preprocesses the network dataset.
+    """
     if drop_anomaly:
         df_network = df_network[df_network["label"] != "anomaly"]
     df_network_labels = df_network[["label_n", "label", "attack"]]
@@ -217,9 +223,42 @@ def prepare_HTIL_network_dataset(df_network, one_hot_encode=True, drop_anomaly=T
 
     return df_network_prepared, df_network_labels
 
+
+def remove_physical_useless_features(df):
+    """
+    Removing columns that are not changing over time. Found in the EDA.
+    """
+    to_remove = [
+        "pump_3",
+        "flow_sensor_3",
+        "valv_1",
+        "valv_2",
+        "valv_3",
+        "valv_4",
+        "valv_5",
+        "valv_6",
+        "valv_7",
+        "valv_8",
+        "valv_9",
+        "valv_10",  # same as valv_12
+        "valv_11",  # same as valv_12
+        "valv_13",  # same as valv_15
+        "valv_14",  # same as valv_15
+        "valv_16",
+        "valv_19",
+        "valv_21",
+    ]
+    df = df.drop(columns=to_remove, inplace=False)
+    return df
+
+
 def prepare_HTIL_physical_dataset(df_physical):
+    """
+    Preprocesses the physical dataset.
+    """
     df_physical_labels = df_physical[["label_n", "label", "attack"]]
     df_physical = df_physical.drop(columns=["label", "label_n", "attack"])
+    df_physical = remove_physical_useless_features(df_physical)
 
     assert len(get_number_column_names(df_physical)) + len(
         get_object_column_names(df_physical)
