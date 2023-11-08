@@ -185,7 +185,9 @@ def _update_labels(df_labels):
     return df_labels
 
 
-def prepare_HTIL_network_dataset(df_network, one_hot_encode=True):
+def prepare_HTIL_network_dataset(df_network, one_hot_encode=True, drop_anomaly=True):
+    if drop_anomaly:
+        df_network = df_network[df_network["label"] != "anomaly"]
     df_network_labels = df_network[["label_n", "label", "attack"]]
     df_network = df_network.drop(columns=["label", "label_n", "attack"])
 
