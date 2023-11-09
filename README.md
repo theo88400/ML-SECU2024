@@ -6,6 +6,13 @@ Please rename both datasets folders like below to ensure correct loading:
 - `HardwareInTheLoop`
 - `SecureWaterTreatment`
 
+## Authors
+
+- Arnaud Baradat
+- Tom Genlis
+- Théo Ripoll
+- Quentin Fisch
+
 ## Architecture
 
 - src/
